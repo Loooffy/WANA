@@ -1,0 +1,40 @@
+@import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-mono: "VT323", monospace;
+}
+
+@keyframes pixel-bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+@keyframes pixel-eat {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+}
+
+@keyframes pixel-shake {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-5deg); }
+  75% { transform: rotate(5deg); }
+}
+
+.animate-pixel-bounce {
+  animation: pixel-bounce 1s steps(2, start) infinite;
+}
+
+.animate-pixel-eat {
+  animation: pixel-eat 0.5s steps(2, start) infinite;
+}
+
+.animate-pixel-shake {
+  animation: pixel-shake 0.3s steps(2, start) infinite;
+}
+
+body {
+  background-color: #171717;
+  color: #e5e5e5;
+  font-family: var(--font-mono);
+}
