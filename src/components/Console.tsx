@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import TamagotchiDisplay from './TamagotchiDisplay';
 import { useBeep } from '../hooks/useBeep';
 import { generateTamagotchiResponse, TamagotchiState, AIResponse } from '../services/ai';
+import { CANNED_MESSAGES } from '../constants';
 import { 
   Send, Utensils, Gamepad2, Moon, Cat, Heart, 
   Shirt, Bath, Cloud, BriefcaseMedical, BrainCircuit, 
@@ -11,7 +12,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-type MenuLevel = 'main' | 'tamagotchi' | 'player' | 'first_aid' | 'anon_msg' | 'care_others' | 'reply_msg' | 'send_gift' | 'mood_tracker' | 'status_check' | 'friend_status';
+type MenuLevel = 'main' | 'tamagotchi' | 'player' | 'first_aid' | 'anon_msg' | 'diary' | 'care_others' | 'reply_msg' | 'send_gift' | 'mood_tracker' | 'status_check' | 'friend_status';
 
 const MOCK_ANON_MESSAGES = [
   "I feel so lonely sometimes, even when I'm around people.",
@@ -88,6 +89,9 @@ export default function Console() {
   const [inventory, setInventory] = useState<string[]>([]);
   const [wearing, setWearing] = useState<string | null>(null);
   
+  const [anonMessages, setAnonMessages] = useState<string[]>(["I feel so lonely sometimes...", "Today was really hard."]);
+  const [diaryEntries, setDiaryEntries] = useState<string[]>(["Today I felt happy.", "I learned something new."]);
+  
   const [statusQuestionIndex, setStatusQuestionIndex] = useState(0);
   const [statusAnswers, setStatusAnswers] = useState<number[]>([]);
 
@@ -120,10 +124,46 @@ export default function Console() {
       // Optimistic UI update
       playBeep('neutral'); 
       
-      const newState = { ...state, lastAction: action };
-      
-      // Call AI
-      const response = await generateTamagotchiResponse(action, newState);
+      let response: AIResponse;
+
+      // Use canned messages for actions
+      if (type === 'action') {
+        const actionMap: Record<string, keyof typeof CANNED_MESSAGES> = {
+          "Feed me": "feed",
+          "Play a game": "play",
+          "Go to sleep": "sleep",
+          "Take a bath": "clean"
+        };
+        
+        const cannedKey = actionMap[action];
+        if (cannedKey && CANNED_MESSAGES[cannedKey]) {
+          const messages = CANNED_MESSAGES[cannedKey];
+          const randomMessage = messages[Math.floor(Math.random() * messages.length)];
+          
+          // Map actions to stats updates
+          const statsMap: Record<string, { hunger: number, happiness: number, energy: number }> = {
+            "Feed me": { hunger: 20, happiness: 5, energy: 0 },
+            "Play a game": { hunger: -10, happiness: 20, energy: -10 },
+            "Go to sleep": { hunger: -5, happiness: 0, energy: 30 },
+            "Take a bath": { hunger: 0, happiness: 10, energy: 0 }
+          };
+
+          response = {
+            message: randomMessage,
+            expression: cannedKey === 'sleep' ? 'sleeping' : cannedKey === 'feed' ? 'eating' : 'happy',
+            sound: 'chirp',
+            statsUpdate: statsMap[action] || { hunger: 0, happiness: 0, energy: 0 }
+          };
+        } else {
+          // Fallback to AI
+          const newState = { ...state, lastAction: action };
+          response = await generateTamagotchiResponse(action, newState);
+        }
+      } else {
+        // Fallback to AI for chat
+        const newState = { ...state, lastAction: action };
+        response = await generateTamagotchiResponse(action, newState);
+      }
       
       // Update state based on AI response
       setState(prev => ({
@@ -289,7 +329,7 @@ export default function Console() {
               {renderGridButton(<BrainCircuit size={24} />, "Counseling", () => handleAction("Counseling resources", 'action'), "text-teal-500", "bg-teal-100")}
               {renderGridButton(<PhoneCall size={24} />, "Helpline", () => handleAction("Emergency helpline", 'action'), "text-rose-600", "bg-rose-100")}
               {renderGridButton(<MessageSquareDashed size={24} />, "Anon Msg", () => setMenuLevel('anon_msg'), "text-indigo-500", "bg-indigo-100")}
-              {renderGridButton(<BookLock size={24} />, "Diary", () => handleAction("Private diary", 'action'), "text-amber-700", "bg-amber-100")}
+              {renderGridButton(<BookLock size={24} />, "Diary", () => setMenuLevel('diary'), "text-amber-700", "bg-amber-100")}
               {renderGridButton(<Flower size={24} />, "Meditate", () => handleAction("Mindfulness meditation", 'action'), "text-emerald-500", "bg-emerald-100")}
               {renderGridButton(<Music4 size={24} />, "Relax", () => handleAction("Relaxing sounds", 'action'), "text-sky-400", "bg-sky-100")}
               {renderGridButton(<Smile size={24} />, "Mood", () => setMenuLevel('mood_tracker'), "text-yellow-500", "bg-yellow-100")}
@@ -393,21 +433,39 @@ export default function Console() {
               value={anonMessage}
               onChange={(e) => setAnonMessage(e.target.value)}
               placeholder="Write whatever is on your mind..."
-              className="w-full h-32 bg-white/90 border-4 border-white rounded-3xl p-4 text-sm text-slate-700 focus:outline-none focus:border-indigo-300 transition-colors resize-none placeholder:text-slate-400 shadow-lg font-bold"
+              className="w-full h-20 bg-white/90 border-4 border-white rounded-3xl p-4 text-sm text-slate-700 focus:outline-none focus:border-indigo-300 transition-colors resize-none placeholder:text-slate-400 shadow-lg font-bold"
             />
             <button
               onClick={() => {
                 if (anonMessage.trim()) {
-                  handleAction(`Anonymous Message: ${anonMessage}`, 'chat');
+                  setAnonMessages(prev => [anonMessage, ...prev]);
                   setAnonMessage('');
-                  setMenuLevel('player');
                 }
               }}
               disabled={!anonMessage.trim() || loading}
-              className="w-full py-3 bg-indigo-500 hover:bg-indigo-400 hover:-translate-y-1 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-2xl font-black text-sm transition-all shadow-[0_4px_0_rgba(0,0,0,0.2)] active:shadow-none active:translate-y-[4px] flex items-center justify-center gap-2 uppercase tracking-wide cursor-pointer"
+              className="w-full py-2 bg-indigo-500 hover:bg-indigo-400 disabled:opacity-50 text-white rounded-2xl font-black text-sm transition-all shadow-[0_4px_0_rgba(0,0,0,0.2)] active:shadow-none active:translate-y-[4px] flex items-center justify-center gap-2 uppercase tracking-wide cursor-pointer"
             >
-              <Send size={18} /> Send to the Void
+              <Send size={16} /> Post
             </button>
+            <div className="w-full h-40 overflow-y-auto flex flex-col gap-2 pr-2">
+              {anonMessages.map((msg, i) => (
+                <div key={i} className="bg-white/80 p-3 rounded-2xl text-xs text-slate-700 font-bold italic shadow-sm">
+                  {msg}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {menuLevel === 'diary' && (
+          <div className="w-full flex flex-col gap-3">
+            <div className="w-full h-60 overflow-y-auto flex flex-col gap-2 pr-2">
+              {diaryEntries.map((entry, i) => (
+                <div key={i} className="bg-amber-50 p-3 rounded-2xl text-xs text-amber-900 font-bold shadow-sm border border-amber-100">
+                  {entry}
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
