@@ -1,6 +1,10 @@
-import { GoogleGenAI, Type } from "@google/genai";
+import { OpenRouter } from '@openrouter/sdk';
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+const openRouter = new OpenRouter({
+  apiKey: process.env.OPENROUTER_API_KEY,
+  httpReferer: process.env.APP_URL,
+  xTitle: 'Wanaroom',
+});
 
 export interface TamagotchiState {
   hunger: number;
@@ -64,6 +68,8 @@ Example Output:
 }
 `;
 
+const DEFAULT_MODEL = 'google/gemini-2.0-flash-001';
+
 export async function generateTamagotchiResponse(
   input: string,
   currentState: TamagotchiState
@@ -78,40 +84,27 @@ export async function generateTamagotchiResponse(
     User Action/Message: "${input}"
     `;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: prompt,
-      config: {
-        systemInstruction: SYSTEM_INSTRUCTION,
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            message: { type: Type.STRING },
-            expression: { type: Type.STRING, enum: ["happy", "sad", "neutral", "sleeping", "eating", "surprised", "angry", "dead"] },
-            sound: { type: Type.STRING },
-            statsUpdate: {
-              type: Type.OBJECT,
-              properties: {
-                hunger: { type: Type.INTEGER },
-                happiness: { type: Type.INTEGER },
-                energy: { type: Type.INTEGER },
-              },
-            },
-          },
-        },
+    const completion = await openRouter.chat.send({
+      chatGenerationParams: {
+        model: process.env.OPENROUTER_MODEL ?? DEFAULT_MODEL,
+        messages: [
+          { role: 'system', content: SYSTEM_INSTRUCTION },
+          { role: 'user', content: prompt },
+        ],
+        stream: false,
+        responseFormat: { type: 'json_object' },
       },
     });
 
-    const text = response.text;
-    if (!text) throw new Error("No response from AI");
-    return JSON.parse(text) as AIResponse;
+    const content = completion.choices[0]?.message?.content;
+    if (!content) throw new Error('No response from AI');
+    return JSON.parse(content) as AIResponse;
   } catch (error) {
-    console.error("AI Error:", error);
+    console.error('AI Error:', error);
     return {
-      message: "...",
-      expression: "neutral",
-      sound: "beep",
+      message: '...',
+      expression: 'neutral',
+      sound: 'beep',
       statsUpdate: { hunger: 0, happiness: 0, energy: 0 },
     };
   }

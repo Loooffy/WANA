@@ -1,16 +1,36 @@
-import React, { useState, useEffect, useRef } from 'react';
-import TamagotchiDisplay from './TamagotchiDisplay';
-import { useBeep } from '../hooks/useBeep';
-import { generateTamagotchiResponse, TamagotchiState, AIResponse } from '../services/ai';
-import { CANNED_MESSAGES } from '../constants';
-import { 
-  Send, Utensils, Gamepad2, Moon, Cat, Heart, 
-  Shirt, Bath, Cloud, BriefcaseMedical, BrainCircuit, 
-  PhoneCall, MessageSquareDashed, BookLock, Flower, 
-  Music4, Mail, Gift, ArrowLeft, ChevronRight, ChevronLeft,
-  Users, Smile, Activity, UserCheck
+import { AnimatePresence, motion } from 'framer-motion';
+import {
+  Activity,
+  ArrowLeft,
+  Bath,
+  BookLock,
+  BrainCircuit,
+  BriefcaseMedical,
+  Cat,
+  ChevronLeft,
+  ChevronRight,
+  Cloud,
+  Flower,
+  Gamepad2,
+  Gift,
+  Heart,
+  Mail,
+  MessageSquareDashed,
+  Moon,
+  Music4,
+  PhoneCall,
+  Send,
+  Shirt,
+  Smile,
+  UserCheck,
+  Users,
+  Utensils
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useEffect, useRef, useState } from 'react';
+import { CANNED_MESSAGES } from '../constants';
+import { useBeep } from '../hooks/useBeep';
+import { AIResponse, generateTamagotchiResponse, TamagotchiState } from '../services/ai';
+import TamagotchiDisplay from './TamagotchiDisplay';
 
 type MenuLevel = 'main' | 'tamagotchi' | 'player' | 'first_aid' | 'anon_msg' | 'diary' | 'care_others' | 'reply_msg' | 'send_gift' | 'mood_tracker' | 'status_check' | 'friend_status';
 
@@ -71,7 +91,7 @@ export default function Console() {
     energy: 50,
     lastAction: 'init',
   });
-  
+
   const [aiResponse, setAiResponse] = useState<AIResponse>({
     message: "Hi! Who are we caring for today?",
     expression: "happy",
@@ -88,10 +108,10 @@ export default function Console() {
   const [menuLevel, setMenuLevel] = useState<MenuLevel>('main');
   const [inventory, setInventory] = useState<string[]>([]);
   const [wearing, setWearing] = useState<string | null>(null);
-  
+
   const [anonMessages, setAnonMessages] = useState<string[]>(["I feel so lonely sometimes...", "Today was really hard."]);
   const [diaryEntries, setDiaryEntries] = useState<string[]>(["Today I felt happy.", "I learned something new."]);
-  
+
   const [statusQuestionIndex, setStatusQuestionIndex] = useState(0);
   const [statusAnswers, setStatusAnswers] = useState<number[]>([]);
 
@@ -119,11 +139,11 @@ export default function Console() {
   const handleAction = async (action: string, type: 'action' | 'chat') => {
     if (loading) return;
     setLoading(true);
-    
+
     try {
       // Optimistic UI update
-      playBeep('neutral'); 
-      
+      playBeep('neutral');
+
       let response: AIResponse;
 
       // Use canned messages for actions
@@ -134,12 +154,12 @@ export default function Console() {
           "Go to sleep": "sleep",
           "Take a bath": "clean"
         };
-        
+
         const cannedKey = actionMap[action];
         if (cannedKey && CANNED_MESSAGES[cannedKey]) {
           const messages = CANNED_MESSAGES[cannedKey];
           const randomMessage = messages[Math.floor(Math.random() * messages.length)];
-          
+
           // Map actions to stats updates
           const statsMap: Record<string, { hunger: number, happiness: number, energy: number }> = {
             "Feed me": { hunger: 20, happiness: 5, energy: 0 },
@@ -164,7 +184,7 @@ export default function Console() {
         const newState = { ...state, lastAction: action };
         response = await generateTamagotchiResponse(action, newState);
       }
-      
+
       // Update state based on AI response
       setState(prev => ({
         hunger: Math.max(0, Math.min(100, prev.hunger + response.statsUpdate.hunger)),
@@ -174,7 +194,7 @@ export default function Console() {
       }));
 
       setAiResponse(response);
-      
+
       // Play sound based on expression
       if (response.expression === 'happy') playBeep('happy');
       else if (response.expression === 'sad') playBeep('sad');
@@ -247,7 +267,7 @@ export default function Console() {
     if (menuLevel === 'main') {
       return (
         <div className="flex gap-4 justify-center w-full">
-          <button 
+          <button
             onClick={() => {
               setMenuLevel('tamagotchi');
               setAiResponse(prev => ({ ...prev, message: "What do you want to do?", expression: 'happy' }));
@@ -259,7 +279,7 @@ export default function Console() {
             </div>
             <span className="text-xs font-black text-slate-600 group-hover:text-slate-800 uppercase tracking-wide mt-1">Care for Me</span>
           </button>
-          <button 
+          <button
             onClick={() => {
               setMenuLevel('player');
               setAiResponse(prev => ({ ...prev, message: "What do you want to do?", expression: 'happy' }));
@@ -271,7 +291,7 @@ export default function Console() {
             </div>
             <span className="text-xs font-black text-slate-600 group-hover:text-slate-800 uppercase tracking-wide mt-1">Care for You</span>
           </button>
-          <button 
+          <button
             onClick={() => {
               setMenuLevel('care_others');
               setAiResponse(prev => ({ ...prev, message: "What do you want to do?", expression: 'happy' }));
@@ -288,7 +308,7 @@ export default function Console() {
     }
 
     const renderGridButton = (icon: React.ReactNode, label: string, onClick: () => void, textClass: string, bgClass: string) => (
-      <button 
+      <button
         onClick={onClick}
         className={`flex flex-col items-center gap-1 group w-20 active:scale-95 transition-transform cursor-pointer`}
         title={label}
@@ -307,14 +327,14 @@ export default function Console() {
             <>
               {renderGridButton(<Utensils size={24} />, "Feed", () => handleAction("Feed me", 'action'), "text-orange-500", "bg-orange-100")}
               {renderGridButton(<Shirt size={24} />, "Clothes", () => {
-                 if (inventory.length > 0) {
-                   const nextIndex = inventory.indexOf(wearing || '') + 1;
-                   const nextItem = nextIndex < inventory.length ? inventory[nextIndex] : null;
-                   setWearing(nextItem);
-                   handleAction(nextItem ? `Put on ${GIFTS.find(g => g.id === nextItem)?.name}` : "Took off clothes", 'action');
-                 } else {
-                   handleAction("I don't have any clothes yet!", 'action');
-                 }
+                if (inventory.length > 0) {
+                  const nextIndex = inventory.indexOf(wearing || '') + 1;
+                  const nextItem = nextIndex < inventory.length ? inventory[nextIndex] : null;
+                  setWearing(nextItem);
+                  handleAction(nextItem ? `Put on ${GIFTS.find(g => g.id === nextItem)?.name}` : "Took off clothes", 'action');
+                } else {
+                  handleAction("I don't have any clothes yet!", 'action');
+                }
               }, "text-purple-500", "bg-purple-100")}
               {renderGridButton(<Gamepad2 size={24} />, "Play", () => handleAction("Play a game", 'action'), "text-green-500", "bg-green-100")}
               {renderGridButton(<Moon size={24} />, "Sleep", () => handleAction("Go to sleep", 'action'), "text-blue-500", "bg-blue-100")}
@@ -362,27 +382,27 @@ export default function Console() {
           )}
 
           {menuLevel === 'send_gift' && GIFTS.map(gift => (
-             renderGridButton(<span className="text-2xl">{gift.icon}</span>, gift.name, () => handleSendGift(gift.id), "text-slate-700", "bg-white")
+            renderGridButton(<span className="text-2xl">{gift.icon}</span>, gift.name, () => handleSendGift(gift.id), "text-slate-700", "bg-white")
           ))}
 
           {menuLevel === 'mood_tracker' && MOODS.map(mood => (
-             renderGridButton(<span className="text-2xl">{mood.icon}</span>, mood.label, () => {
-               handleAction(`I am feeling ${mood.label.toLowerCase()}`, 'action');
-               setMenuLevel('player');
-             }, mood.color.replace('text-', 'text-'), "bg-white")
+            renderGridButton(<span className="text-2xl">{mood.icon}</span>, mood.label, () => {
+              handleAction(`I am feeling ${mood.label.toLowerCase()}`, 'action');
+              setMenuLevel('player');
+            }, mood.color.replace('text-', 'text-'), "bg-white")
           ))}
 
           {menuLevel === 'status_check' && [1, 2, 3, 4, 5].map(score => (
-             renderGridButton(
-               <span className="text-2xl font-bold">{score}</span>, 
-               "Level", 
-               () => handleStatusAnswer(score), 
-               "text-slate-700",
-               "bg-white"
-             )
+            renderGridButton(
+              <span className="text-2xl font-bold">{score}</span>,
+              "Level",
+              () => handleStatusAnswer(score),
+              "text-slate-700",
+              "bg-white"
+            )
           ))}
         </div>
-        
+
         {menuLevel === 'friend_status' && (
           <div className="w-full bg-white/90 border-4 border-white rounded-3xl p-4 flex flex-col gap-3 shadow-lg text-slate-700">
             <div className="flex items-center gap-3 border-b border-slate-200 pb-3">
@@ -394,7 +414,7 @@ export default function Console() {
                 <p className="text-xs text-slate-500 font-bold">Last active: 10m ago</p>
               </div>
             </div>
-            
+
             <div className="grid grid-cols-2 gap-3 text-sm">
               <div className="bg-purple-50 p-3 rounded-2xl border border-purple-100">
                 <span className="text-slate-400 font-bold text-xs block mb-1 uppercase tracking-wider">Mood</span>
@@ -415,10 +435,10 @@ export default function Console() {
               <div className="w-full bg-slate-200 h-2 rounded-full mb-2 overflow-hidden">
                 <div className="bg-green-400 h-full w-[80%] rounded-full"></div>
               </div>
-              
+
               <div className="flex justify-between text-slate-600 font-bold mb-1">
-                 <span>Happiness</span>
-                 <span>30%</span>
+                <span>Happiness</span>
+                <span>30%</span>
               </div>
               <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
                 <div className="bg-red-400 h-full w-[30%] rounded-full"></div>
@@ -426,7 +446,7 @@ export default function Console() {
             </div>
           </div>
         )}
-        
+
         {menuLevel === 'anon_msg' && (
           <div className="w-full flex flex-col gap-3">
             <textarea
@@ -477,7 +497,7 @@ export default function Console() {
                 <button onClick={handlePrevCard} className="p-2 bg-white/20 hover:bg-white/40 hover:-translate-y-0.5 active:translate-y-0.5 rounded-full text-white transition-all cursor-pointer">
                   <ChevronLeft size={28} />
                 </button>
-                
+
                 <div className="flex-1 h-48 relative perspective-1000">
                   <AnimatePresence mode="wait">
                     <motion.div
@@ -542,7 +562,7 @@ export default function Console() {
           </div>
         )}
 
-        <button 
+        <button
           onClick={() => {
             if (menuLevel === 'first_aid' || menuLevel === 'anon_msg' || menuLevel === 'mood_tracker' || menuLevel === 'status_check') {
               setMenuLevel('player');
@@ -564,7 +584,7 @@ export default function Console() {
   };
 
   return (
-    <div className="flex flex-col items-center justify-start min-h-screen bg-[#57C5B6] p-4 pt-32 font-sans text-slate-800 relative overflow-hidden">
+    <div className="flex flex-col items-center justify-start min-h-screen bg-[#57C5B6] pt-32 font-sans text-slate-800 relative overflow-hidden">
       {/* Decorative Clouds */}
       <div className="absolute top-10 -left-10 w-40 h-16 bg-[#EFFFFD] rounded-full opacity-30 blur-xl"></div>
       <div className="absolute top-32 -right-10 w-56 h-20 bg-[#EFFFFD] rounded-full opacity-30 blur-xl"></div>
@@ -585,25 +605,25 @@ export default function Console() {
         {/* Screen Only */}
         <div className="w-64 h-64 bg-[#F0F7F4] shadow-[0_12px_0_rgba(0,0,0,0.1)] border-[6px] border-white relative overflow-hidden rounded-[2.5rem] shrink-0">
           <TamagotchiDisplay expression={aiResponse.expression} isTalking={loading} />
-          
+
           {/* Wearable Overlay */}
           {wearing && (
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-5xl pointer-events-none z-10 animate-bounce">
               {GIFTS.find(g => g.id === wearing)?.icon}
             </div>
           )}
-          
+
           {/* Stats Overlay */}
           <div className="absolute top-3 right-3 flex flex-col gap-1">
-             <div className="w-16 h-2 bg-slate-200 rounded-full overflow-hidden border border-slate-300">
-               <div className="bg-orange-400 h-full" style={{ width: `${state.hunger}%` }}></div>
-             </div>
-             <div className="w-16 h-2 bg-slate-200 rounded-full overflow-hidden border border-slate-300">
-               <div className="bg-pink-400 h-full" style={{ width: `${state.happiness}%` }}></div>
-             </div>
-             <div className="w-16 h-2 bg-slate-200 rounded-full overflow-hidden border border-slate-300">
-               <div className="bg-blue-400 h-full" style={{ width: `${state.energy}%` }}></div>
-             </div>
+            <div className="w-16 h-2 bg-slate-200 rounded-full overflow-hidden border border-slate-300">
+              <div className="bg-orange-400 h-full" style={{ width: `${state.hunger}%` }}></div>
+            </div>
+            <div className="w-16 h-2 bg-slate-200 rounded-full overflow-hidden border border-slate-300">
+              <div className="bg-pink-400 h-full" style={{ width: `${state.happiness}%` }}></div>
+            </div>
+            <div className="w-16 h-2 bg-slate-200 rounded-full overflow-hidden border border-slate-300">
+              <div className="bg-blue-400 h-full" style={{ width: `${state.energy}%` }}></div>
+            </div>
           </div>
         </div>
 
@@ -611,48 +631,7 @@ export default function Console() {
         <div className="w-full min-h-[200px] flex items-start justify-center">
           {renderMenu()}
         </div>
-
-        {/* Reset Button (Hidden-ish) */}
-        <button 
-          onClick={() => {
-            if (confirm('Reset your pet?')) {
-              setState({ hunger: 50, happiness: 50, energy: 50, lastAction: 'reset' });
-              setAiResponse({ message: "Hi! Who are we caring for today?", expression: "happy", sound: "chirp", statsUpdate: { hunger: 0, happiness: 0, energy: 0 } });
-              setMenuLevel('main');
-              setInventory([]);
-              setWearing(null);
-              playBeep('happy');
-            }
-          }}
-          className="opacity-30 hover:opacity-100 text-xs text-white font-bold transition-all absolute top-0 right-0 bg-black/20 px-2 py-1 rounded-lg hover:bg-red-500/80 hover:scale-105 active:scale-95 cursor-pointer"
-        >
-          RESET
-        </button>
       </div>
-
-      {/* User Input Only - REMOVED */}
-      {/* <div className="w-full max-w-md mt-4">
-        <form 
-          onSubmit={(e) => { e.preventDefault(); if(input.trim()) handleAction(input, 'chat'); }}
-          className="flex gap-2"
-        >
-          <input
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="Say something..."
-            className="flex-1 bg-neutral-800 border-2 border-neutral-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-yellow-500 transition-colors font-sans"
-            disabled={loading}
-          />
-          <button 
-            type="submit"
-            disabled={loading || !input.trim()}
-            className="bg-yellow-500 text-black px-6 py-2 rounded-xl font-bold hover:bg-yellow-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            <Send size={20} />
-          </button>
-        </form>
-      </div> */}
     </div>
   );
 }
